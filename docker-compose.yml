@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:13
+    container_name: aura1-db
+    restart: always
+    environment:
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_DB=${DB_NAME:-locoe_gain}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI Backend
+  backend:
+    build: ./backend
+    container_name: aura1-backend
+    restart: always
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-locoe_gain}
+      - SECRET_KEY=${SECRET_KEY:-your_secret_key_here}
+      - PORT=${PORT:-8000}
+      - HOST=0.0.0.0
+      - DEBUG=${DEBUG:-False}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost}
+    volumes:
+      - ./backend:/app
+      - backend_uploads:/app/uploads
+      - backend_output:/app/output
+    ports:
+      - "8000:8000"
+
+  # React Frontend
+  frontend:
+    build: ./frontend
+    container_name: aura1-frontend
+    restart: always
+    depends_on:
+      - backend
+    environment:
+      - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:8000/api}
+    ports:
+      - "80:80"
+
+volumes:
+  postgres_data:
+  backend_uploads:
+  backend_output:
